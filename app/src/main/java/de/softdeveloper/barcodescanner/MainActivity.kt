@@ -2,7 +2,9 @@ package de.softdeveloper.barcodescanner
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.ContentValues
 import android.content.Intent
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -22,6 +24,15 @@ import java.net.MalformedURLException
 import java.net.URL
 
 class MainActivity : AppCompatActivity() {
+
+    companion object{
+        val COLUMN_ID ="_id"
+        val COLUMN_QUANTITY = "quantity"
+        val COLUMN_PRODUCT = "product"
+        val COLUMN_ISSELECTED = "selected"
+
+        val CONTENT_URI = Uri.parse("content://de.softdeveloper.shoppinglist.ShoppingMemoContentProvider/shopping_list")
+    }
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var activityResultLauncher: ActivityResultLauncher<Intent>
@@ -49,6 +60,11 @@ class MainActivity : AppCompatActivity() {
                     if (it.resultCode == RESULT_OK && it.data != null) {
                         var value = getProduct(it.data!!.getStringExtra("SCAN_RESULT") ?: "")
                         binding.tvResult.text = value
+                        val values = ContentValues().apply {
+                            put(COLUMN_QUANTITY,1)
+                            put(COLUMN_PRODUCT, binding.tvResult.text.toString())
+                        }
+                        contentResolver.insert(CONTENT_URI,values)
                     }
                 }
             }
