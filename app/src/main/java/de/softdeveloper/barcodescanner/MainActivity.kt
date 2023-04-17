@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ContentValues
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -11,6 +12,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
 import de.softdeveloper.barcodescanner.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,13 +27,14 @@ import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
-    companion object{
-        val COLUMN_ID ="_id"
+    companion object {
+        val COLUMN_ID = "_id"
         val COLUMN_QUANTITY = "quantity"
         val COLUMN_PRODUCT = "product"
         val COLUMN_ISSELECTED = "selected"
 
-        val CONTENT_URI = Uri.parse("content://de.softdeveloper.shoppinglist.ShoppingMemoContentProvider/shopping_list")
+        val CONTENT_URI =
+            Uri.parse("content://de.softdeveloper.shoppinglist.ShoppingMemoContentProvider/shopping_list")
     }
 
     private lateinit var binding: ActivityMainBinding
@@ -43,16 +46,32 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.btnScan.setOnClickListener {
-            val intent = Intent("com.google.zxing.client.android.SCAN")
-            intent.putExtra("SCAN_MODE", "PRODUCT_MODE")
+        binding.btnScan.isEnabled = false
 
-            try {
-                activityResultLauncher.launch(intent)
-            } catch (e: ActivityNotFoundException) {
-                Toast.makeText(this, "Scanner nicht gefunden", Toast.LENGTH_SHORT).show()
-            }
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                "de.softdeveloper.shoppinglist.permissions.USE_SHOPPINGLIST"
+            ) != PackageManager.PERMISSION_GRANTED
+        ){
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf("de.softdeveloper.shoppinglist.permissions.USE_SHOPPINGLIST"),
+                123
+            )
+        }else{
+            enableButton()
         }
+
+            binding.btnScan.setOnClickListener {
+                val intent = Intent("com.google.zxing.client.android.SCAN")
+                intent.putExtra("SCAN_MODE", "PRODUCT_MODE")
+
+                try {
+                    activityResultLauncher.launch(intent)
+                } catch (e: ActivityNotFoundException) {
+                    Toast.makeText(this, "Scanner nicht gefunden", Toast.LENGTH_SHORT).show()
+                }
+            }
 
         activityResultLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -61,13 +80,28 @@ class MainActivity : AppCompatActivity() {
                         var value = getProduct(it.data!!.getStringExtra("SCAN_RESULT") ?: "")
                         binding.tvResult.text = value
                         val values = ContentValues().apply {
-                            put(COLUMN_QUANTITY,1)
+                            put(COLUMN_QUANTITY, 1)
                             put(COLUMN_PRODUCT, binding.tvResult.text.toString())
                         }
-                        contentResolver.insert(CONTENT_URI,values)
+                        contentResolver.insert(CONTENT_URI, values)
                     }
                 }
             }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if(requestCode == 123 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+            enableButton()
+        }
+    }
+
+    fun enableButton() {
+        binding.btnScan.isEnabled = true
     }
 
     private suspend fun getProduct(scanResult: String): String {
